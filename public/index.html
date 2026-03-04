@@ -219,15 +219,37 @@
             flex: 1;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid var(--glass-border);
-            border-radius: 10px;
-            padding: 1rem;
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
             color: #fff;
             resize: none;
             height: 50px;
             font-family: inherit;
-            font-size: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.4;
             outline: none;
             transition: all 0.2s;
+            /* Hide scrollbar for standard look, custom style below */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+
+        /* Custom Scrollbar for Textarea */
+        textarea::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        textarea::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        textarea::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        textarea::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.4);
         }
 
         textarea:focus {
