@@ -1,9 +1,8 @@
 # Local Sync Board (本地同步剪贴板)
 
 A simple, local network real-time clipboard/text synchronization tool based on Node.js and Socket.io.
-一个基于 Node.js 和 Socket.io 的简单局域网实时剪贴板/文本同步工具。
 
-![License](https://img.shields.io/badge/license-ISC-blue.svg)
+一个基于 Node.js 和 Socket.io 的简单局域网实时剪贴板/文本同步工具。
 
 ## ✨ Features (功能特性)
 
@@ -40,7 +39,7 @@ A simple, local network real-time clipboard/text synchronization tool based on N
 
 4. Access the application (访问应用):
    - Local: Open `http://localhost:3000` in your browser.
-   - Network: Look at the terminal output for your LAN IP (e.g., `http://192.168.1.5:3000`) and open it on other devices.
+   - Network: Look at the terminal output for your LAN IP and open it on other devices.
 
 ## 🛠️ Technologies (技术栈)
 
@@ -51,8 +50,5 @@ A simple, local network real-time clipboard/text synchronization tool based on N
 ## 🔒 Security Note (安全提示)
 
 This tool is designed for **trusted local networks** (Home/Office). It does not have authentication. Anyone on your Wi-Fi can see the synced text. Do not expose this port to the public internet.
+
 本工具设计用于**受信任的局域网环境**（家庭/办公室）。它没有身份验证功能。同一 Wi-Fi 下的任何人都可以看到同步的文本。请勿将此端口暴露给公网。
-
-## 📝 License
-
-ISC
