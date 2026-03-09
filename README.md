@@ -8,7 +8,9 @@ A simple, local network real-time clipboard/text synchronization tool based on N
 
 - **Real-time Sync (实时同步)**: Text copied or typed on one device appears instantly on all other connected devices.
 - **Local Network Access (局域网访问)**: Accessible by any device (PC, Mobile, Tablet) on the same Wi-Fi/LAN.
-- **Glassmorphism UI (毛玻璃界面)**: Modern, beautiful interface with smooth animations and gradient backgrounds.
+- **Glassmorphism UI (毛玻璃界面)**: Modern, beautiful interface with smooth animations.
+- **Background Mode Toggle (背景模式切换)**: Switch between animated gradient and random image background.
+- **Random Image Background (随机图片背景)**: Image mode loads from `https://www.loliapi.com/acg/`, and each page refresh requests a new image.
 - **History (历史记录)**: Keeps track of the last 100 messages.
 - **One-click Copy (一键复制)**: deeply optimized copy button that works even in non-secure (HTTP) contexts typical for local networks.
 - **Zero Configuration (零配置)**: Just start and use. No database required.
@@ -40,6 +42,12 @@ A simple, local network real-time clipboard/text synchronization tool based on N
 4. Access the application (访问应用):
    - Local: Open `http://localhost:3000` in your browser.
    - Network: Look at the terminal output for your LAN IP and open it on other devices.
+
+## Background Mode (背景模式)
+
+- The default background mode is **Image** when entering the page.
+- Use the header toggle to switch between **Gradient** and **Image** at any time.
+- In **Image** mode, the app requests `https://www.loliapi.com/acg/` on each refresh to get a new background image.
 
 ## 🛠️ Technologies (技术栈)
 

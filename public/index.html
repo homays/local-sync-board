@@ -31,13 +31,25 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            background-color: #0a274d;
+            color: var(--text-primary);
+        }
+
+        body.bg-gradient {
             background:
                 radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0) 34%),
                 radial-gradient(circle at 82% 78%, rgba(14, 165, 233, 0.35) 0%, rgba(14, 165, 233, 0) 42%),
                 linear-gradient(120deg, #0ea5e9 0%, #2563eb 52%, #38bdf8 100%);
             background-size: 170% 170%, 210% 210%, 320% 320%;
             animation: gradientBG 22s ease-in-out infinite;
-            color: var(--text-primary);
+        }
+
+        body.bg-image {
+            animation: none;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
         }
 
         @keyframes gradientBG {
@@ -94,6 +106,63 @@
             display: flex;
             align-items: center;
             gap: 0.6rem;
+        }
+
+        .background-setting {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.55rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .background-label {
+            font-size: 0.8rem;
+            color: rgba(247, 251, 255, 0.9);
+            white-space: nowrap;
+        }
+
+        .background-toggle {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .bg-mode-btn {
+            border: none;
+            background: transparent;
+            color: rgba(247, 251, 255, 0.92);
+            padding: 0.38rem 0.8rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 58px;
+        }
+
+        .bg-mode-btn + .bg-mode-btn {
+            border-left: 1px solid rgba(255, 255, 255, 0.22);
+        }
+
+        .bg-mode-btn:hover {
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff;
+        }
+
+        .bg-mode-btn.active {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.78) 0%, rgba(37, 99, 235, 0.78) 100%);
+            color: #fff;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+        }
+
+        .bg-mode-btn:focus-visible {
+            outline: 2px solid rgba(255, 255, 255, 0.5);
+            outline-offset: -2px;
         }
 
         button#lang-toggle-btn {
@@ -450,6 +519,25 @@
                 padding: 1rem;
             }
 
+            .header-actions {
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+
+            .background-setting {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .background-toggle {
+                flex: 1;
+                justify-content: stretch;
+            }
+
+            .bg-mode-btn {
+                flex: 1;
+            }
+
             #messages {
                 padding: 1rem;
             }
@@ -478,7 +566,7 @@
         }
     </style>
 </head>
-<body>
+<body class="bg-image">
     <div class="container">
         <header>
             <div style="display:flex; align-items:center; gap: 1rem;">
@@ -486,6 +574,13 @@
                 <div id="status" class="status disconnected">Connecting...</div>
             </div>
             <div class="header-actions">
+                <div class="background-setting">
+                    <span id="background-mode-label" class="background-label">Background</span>
+                    <div class="background-toggle" role="group" aria-label="Background mode">
+                        <button id="bg-btn-gradient" class="bg-mode-btn" type="button">Gradient</button>
+                        <button id="bg-btn-image" class="bg-mode-btn active" type="button">Image</button>
+                    </div>
+                </div>
                 <button id="lang-toggle-btn" type="button" title="Switch language">中文</button>
                 <button id="clear-btn" title="Clear History">Clear All</button>
             </div>
@@ -537,6 +632,10 @@
         const modalSendBtn = document.getElementById('modal-send-btn');
         const appTitleEl = document.querySelector('h1');
         const modalTitleEl = document.getElementById('editor-modal-title');
+        const backgroundModeLabelEl = document.getElementById('background-mode-label');
+        const backgroundToggleGroup = document.querySelector('.background-toggle');
+        const bgGradientBtn = document.getElementById('bg-btn-gradient');
+        const bgImageBtn = document.getElementById('bg-btn-image');
         let connectionState = 'connecting';
 
         const i18n = {
@@ -562,6 +661,9 @@
                 copy: 'Copy',
                 copied: 'Copied!',
                 copyFail: 'Failed to copy to clipboard: ',
+                backgroundMode: 'Background',
+                backgroundGradient: 'Gradient',
+                backgroundImage: 'Image',
                 langToggle: '中文',
                 htmlLang: 'en'
             },
@@ -588,14 +690,18 @@
                 copied: '已复制！',
                 copyFail: '复制失败：',
                 langToggle: 'EN',
+                backgroundMode: '背景',
+                backgroundGradient: '渐变',
+                backgroundImage: '图片',
                 htmlLang: 'zh-CN'
             }
         };
 
         let currentLang = localStorage.getItem('app-lang') || 'zh';
+        let backgroundMode = 'image';
 
         function t(key) {
-            return i18n[currentLang][key] || key;
+            return i18n[currentLang][key] || i18n.en[key] || key;
         }
 
         function updateStatusText() {
@@ -626,6 +732,12 @@
             modalCloseBtn.setAttribute('aria-label', t('closeExpandedEditor'));
             modalCancelBtn.textContent = t('cancel');
             modalSendBtn.textContent = t('send');
+            backgroundModeLabelEl.textContent = t('backgroundMode');
+            backgroundToggleGroup.setAttribute('aria-label', t('backgroundMode'));
+            bgGradientBtn.textContent = t('backgroundGradient');
+            bgImageBtn.textContent = t('backgroundImage');
+            bgGradientBtn.title = t('backgroundGradient');
+            bgImageBtn.title = t('backgroundImage');
             langToggleBtn.textContent = t('langToggle');
             langToggleBtn.title = t('switchLanguage');
             updateStatusText();
@@ -640,6 +752,28 @@
             currentLang = currentLang === 'zh' ? 'en' : 'zh';
             localStorage.setItem('app-lang', currentLang);
             applyLanguage();
+        }
+
+        function applyBackgroundMode() {
+            const useImageBackground = backgroundMode === 'image';
+            document.body.classList.toggle('bg-image', useImageBackground);
+            document.body.classList.toggle('bg-gradient', !useImageBackground);
+            bgImageBtn.classList.toggle('active', useImageBackground);
+            bgGradientBtn.classList.toggle('active', !useImageBackground);
+            bgImageBtn.setAttribute('aria-pressed', String(useImageBackground));
+            bgGradientBtn.setAttribute('aria-pressed', String(!useImageBackground));
+
+            if (useImageBackground) {
+                const imageUrl = `https://www.loliapi.com/acg/?t=${Date.now()}`;
+                document.body.style.backgroundImage = `linear-gradient(rgba(3, 18, 48, 0.42), rgba(3, 18, 48, 0.42)), url("${imageUrl}")`;
+            } else {
+                document.body.style.backgroundImage = '';
+            }
+        }
+
+        function setBackgroundMode(mode) {
+            backgroundMode = mode === 'gradient' ? 'gradient' : 'image';
+            applyBackgroundMode();
         }
 
         // Connection status handling
@@ -724,6 +858,8 @@
         modalCancelBtn.addEventListener('click', () => closeEditorModal(true));
         modalSendBtn.addEventListener('click', sendFromExpandedEditor);
         langToggleBtn.addEventListener('click', toggleLanguage);
+        bgGradientBtn.addEventListener('click', () => setBackgroundMode('gradient'));
+        bgImageBtn.addEventListener('click', () => setBackgroundMode('image'));
 
         expandedInputEl.addEventListener('input', () => {
             inputEl.value = expandedInputEl.value;
@@ -858,6 +994,7 @@
         }
 
         applyLanguage();
+        applyBackgroundMode();
     </script>
 </body>
 </html>
