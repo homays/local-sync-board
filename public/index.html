@@ -591,7 +591,7 @@
         </div>
 
         <div id="input-area">
-            <textarea id="message-input" placeholder="Type or paste text here... (Ctrl+Enter to send)"></textarea>
+            <textarea id="message-input" placeholder="Type or paste text here... (Enter to send, Shift+Enter for newline)"></textarea>
             <button id="expand-btn" type="button" title="Open larger editor">Expand</button>
             <button id="send-btn">Send</button>
         </div>
@@ -606,7 +606,7 @@
             <textarea
                 id="expanded-input"
                 class="expanded-textarea"
-                placeholder="Edit long text here... (Ctrl+Enter to send)"
+                placeholder="Edit long text here... (Enter to send, Shift+Enter for newline)"
             ></textarea>
             <div class="modal-actions">
                 <button id="modal-cancel-btn" type="button" class="modal-btn modal-btn-secondary">Cancel</button>
@@ -648,12 +648,12 @@
                 clearAll: 'Clear All',
                 clearHistoryTitle: 'Clear History',
                 clearConfirm: 'Clear all history for everyone?',
-                inputPlaceholder: 'Type or paste text here... (Ctrl+Enter to send)',
+                inputPlaceholder: 'Type or paste text here... (Enter to send, Shift+Enter for newline)',
                 expand: 'Expand',
                 expandTitle: 'Open larger editor',
                 send: 'Send',
                 expandedEditor: 'Expanded Editor',
-                expandedPlaceholder: 'Edit long text here... (Ctrl+Enter to send)',
+                expandedPlaceholder: 'Edit long text here... (Enter to send, Shift+Enter for newline)',
                 close: 'Close',
                 closeExpandedEditor: 'Close expanded editor',
                 cancel: 'Cancel',
@@ -676,12 +676,12 @@
                 clearAll: '清空记录',
                 clearHistoryTitle: '清空历史',
                 clearConfirm: '确认清空所有人的历史记录吗？',
-                inputPlaceholder: '在这里输入或粘贴文本...（Ctrl+Enter 发送）',
+                inputPlaceholder: '在这里输入或粘贴文本...（Enter 发送，Shift+Enter 换行）',
                 expand: '放大编辑',
                 expandTitle: '打开大编辑框',
                 send: '发送',
                 expandedEditor: '放大编辑',
-                expandedPlaceholder: '在这里编辑长文本...（Ctrl+Enter 发送）',
+                expandedPlaceholder: '在这里编辑长文本...（Enter 发送，Shift+Enter 换行）',
                 close: '关闭',
                 closeExpandedEditor: '关闭放大编辑框',
                 cancel: '取消',
@@ -822,7 +822,8 @@
         sendBtn.addEventListener('click', sendMessage);
 
         inputEl.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 sendMessage();
             }
         });
@@ -866,7 +867,8 @@
         });
 
         expandedInputEl.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 sendFromExpandedEditor();
             }
         });
