@@ -470,6 +470,22 @@
             background: rgba(255, 255, 255, 0.22);
         }
 
+        button#upload-btn {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 10px;
+            padding: 0 1.2rem;
+            height: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button#upload-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+        }
+
         .modal-open {
             overflow: hidden;
         }
@@ -667,6 +683,7 @@
             }
 
             button#expand-btn,
+            button#upload-btn,
             button#send-btn {
                 height: 46px;
                 flex: 1;
@@ -705,7 +722,9 @@
         <div id="input-area">
             <textarea id="message-input" placeholder="Type or paste text here... (Enter to send, Shift+Enter for newline)"></textarea>
             <button id="expand-btn" type="button" title="Open larger editor">Expand</button>
+            <button id="upload-btn" type="button" title="Upload image">Upload</button>
             <button id="send-btn">Send</button>
+            <input id="image-input" type="file" accept="image/*" hidden />
             <div id="pending-image" class="pending-image hidden">
                 <img id="pending-image-preview" class="pending-image-preview" alt="Pasted image preview" />
                 <div class="pending-image-meta">
@@ -748,6 +767,7 @@
         const messagesEl = document.getElementById('messages');
         const inputEl = document.getElementById('message-input');
         const expandBtn = document.getElementById('expand-btn');
+        const uploadBtn = document.getElementById('upload-btn');
         const sendBtn = document.getElementById('send-btn');
         const clearBtn = document.getElementById('clear-btn');
         const langToggleBtn = document.getElementById('lang-toggle-btn');
@@ -762,6 +782,7 @@
         const pendingImagePreviewEl = document.getElementById('pending-image-preview');
         const pendingImageLabelEl = document.getElementById('pending-image-label');
         const pendingImageRemoveBtn = document.getElementById('pending-image-remove');
+        const imageInputEl = document.getElementById('image-input');
         const imageModalEl = document.getElementById('image-modal');
         const imageModalImgEl = document.getElementById('image-modal-img');
         const imageModalCloseBtn = document.getElementById('image-modal-close');
@@ -772,6 +793,7 @@
         let connectionState = 'connecting';
         const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
         let pendingImageDataUrl = null;
+        let imageModalCloseTimer = null;
 
         const i18n = {
             en: {
@@ -786,6 +808,8 @@
                 inputPlaceholder: 'Type or paste text here... (Enter to send, Shift+Enter for newline)',
                 expand: 'Expand',
                 expandTitle: 'Open larger editor',
+                uploadImage: 'Upload',
+                uploadTitle: 'Upload image',
                 send: 'Send',
                 expandedEditor: 'Expanded Editor',
                 expandedPlaceholder: 'Edit long text here... (Enter to send, Shift+Enter for newline)',
@@ -823,6 +847,8 @@
                 inputPlaceholder: '在这里输入或粘贴文本...（Enter 发送，Shift+Enter 换行）',
                 expand: '放大编辑',
                 expandTitle: '打开大编辑框',
+                uploadImage: '上传图片',
+                uploadTitle: '上传图片',
                 send: '发送',
                 expandedEditor: '放大编辑',
                 expandedPlaceholder: '在这里编辑长文本...（Enter 发送，Shift+Enter 换行）',
@@ -878,6 +904,8 @@
             inputEl.placeholder = t('inputPlaceholder');
             expandBtn.textContent = t('expand');
             expandBtn.title = t('expandTitle');
+            uploadBtn.textContent = t('uploadImage');
+            uploadBtn.title = t('uploadTitle');
             sendBtn.textContent = t('send');
             modalTitleEl.textContent = t('expandedEditor');
             expandedInputEl.placeholder = t('expandedPlaceholder');
@@ -947,6 +975,10 @@
         }
 
         function openImageModal(dataUrl) {
+            if (imageModalCloseTimer) {
+                clearTimeout(imageModalCloseTimer);
+                imageModalCloseTimer = null;
+            }
             imageModalImgEl.src = dataUrl;
             imageModalEl.classList.add('open');
             imageModalEl.setAttribute('aria-hidden', 'false');
@@ -955,7 +987,12 @@
         function closeImageModal() {
             imageModalEl.classList.remove('open');
             imageModalEl.setAttribute('aria-hidden', 'true');
-            imageModalImgEl.src = '';
+            imageModalCloseTimer = setTimeout(() => {
+                if (!imageModalEl.classList.contains('open')) {
+                    imageModalImgEl.src = '';
+                }
+                imageModalCloseTimer = null;
+            }, 220);
         }
 
         // Connection status handling
@@ -1064,6 +1101,29 @@
             }
         }
 
+        function handleImageFileSelect(file) {
+            if (!file) {
+                return;
+            }
+            if (!file.type || !file.type.startsWith('image/')) {
+                alert(t('imageInvalid'));
+                return;
+            }
+            if (file.size > MAX_IMAGE_BYTES) {
+                alert(t('imageTooLarge'));
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                setPendingImage(reader.result);
+            };
+            reader.onerror = () => {
+                alert(t('imageSendFailed'));
+            };
+            reader.readAsDataURL(file);
+        }
+
         function dataUrlToBlob(dataUrl) {
             const parts = dataUrl.split(',');
             if (parts.length < 2) {
@@ -1079,6 +1139,28 @@
                 array[i] = binary.charCodeAt(i);
             }
             return new Blob([array], { type: match[1] });
+        }
+
+        function dataUrlToPngBlob(dataUrl) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        resolve(null);
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/png');
+                };
+                img.onerror = () => resolve(null);
+                img.src = dataUrl;
+            });
         }
 
         async function copyImageToClipboard(btn, dataUrl) {
@@ -1100,16 +1182,26 @@
 
             try {
                 await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-                btn.textContent = t('copied');
-                btn.classList.add('copied');
-                setTimeout(() => {
-                    btn.textContent = t('copy');
-                    btn.classList.remove('copied');
-                }, 2000);
             } catch (err) {
-                console.error('Failed to copy image:', err);
-                alert(t('imageCopyFailed'));
+                try {
+                    const pngBlob = await dataUrlToPngBlob(dataUrl);
+                    if (!pngBlob) {
+                        throw err;
+                    }
+                    await navigator.clipboard.write([new ClipboardItem({ [pngBlob.type]: pngBlob })]);
+                } catch (fallbackErr) {
+                    console.error('Failed to copy image:', fallbackErr);
+                    alert(t('imageCopyFailed'));
+                    return;
+                }
             }
+
+            btn.textContent = t('copied');
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = t('copy');
+                btn.classList.remove('copied');
+            }, 2000);
         }
 
         function openEditorModal() {
@@ -1147,6 +1239,12 @@
         bgImageBtn.addEventListener('click', () => setBackgroundMode('image'));
         pendingImageRemoveBtn.addEventListener('click', clearPendingImage);
         imageModalCloseBtn.addEventListener('click', closeImageModal);
+        uploadBtn.addEventListener('click', () => imageInputEl.click());
+        imageInputEl.addEventListener('change', (event) => {
+            const file = event.target.files && event.target.files[0];
+            handleImageFileSelect(file);
+            imageInputEl.value = '';
+        });
 
         expandedInputEl.addEventListener('input', () => {
             inputEl.value = expandedInputEl.value;
