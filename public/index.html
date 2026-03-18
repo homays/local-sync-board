@@ -265,6 +265,20 @@
             word-break: break-word;
         }
 
+        .message-content.image-content {
+            margin-bottom: 1.4rem;
+        }
+
+        .message-image {
+            display: block;
+            max-width: 100%;
+            max-height: 360px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 24px rgba(2, 10, 34, 0.35);
+            cursor: zoom-in;
+        }
+
         .message-meta {
             position: absolute;
             bottom: 0.75rem;
@@ -308,6 +322,7 @@
             display: flex;
             gap: 1rem;
             align-items: flex-end;
+            flex-wrap: wrap;
             backdrop-filter: blur(10px);
         }
 
@@ -356,6 +371,60 @@
 
         textarea::placeholder {
             color: rgba(247, 251, 255, 0.62);
+        }
+
+        .pending-image {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.75rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .pending-image.hidden {
+            display: none;
+        }
+
+        .pending-image-preview {
+            width: 68px;
+            height: 68px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 16px rgba(2, 10, 34, 0.25);
+        }
+
+        .pending-image-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            font-size: 0.85rem;
+            color: rgba(247, 251, 255, 0.9);
+        }
+
+        .pending-image-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .pending-image-btn {
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            padding: 0.35rem 0.7rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .pending-image-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
         }
 
         button#send-btn {
@@ -423,6 +492,49 @@
         .modal-overlay.open {
             opacity: 1;
             pointer-events: auto;
+        }
+
+        .image-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 8, 16, 0.72);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 999;
+            padding: 1.5rem;
+        }
+
+        .image-modal.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .image-modal-img {
+            max-width: min(92vw, 1200px);
+            max-height: 86vh;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 22px 60px rgba(2, 10, 34, 0.5);
+            cursor: zoom-out;
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 1.25rem;
+            right: 1.25rem;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            color: #fff;
+            border-radius: 999px;
+            padding: 0.45rem 0.85rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
         }
 
         .modal-panel {
@@ -594,6 +706,15 @@
             <textarea id="message-input" placeholder="Type or paste text here... (Enter to send, Shift+Enter for newline)"></textarea>
             <button id="expand-btn" type="button" title="Open larger editor">Expand</button>
             <button id="send-btn">Send</button>
+            <div id="pending-image" class="pending-image hidden">
+                <img id="pending-image-preview" class="pending-image-preview" alt="Pasted image preview" />
+                <div class="pending-image-meta">
+                    <div id="pending-image-label">Pasted image ready to send</div>
+                </div>
+                <div class="pending-image-actions">
+                    <button id="pending-image-remove" class="pending-image-btn" type="button">Remove</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -615,6 +736,11 @@
         </div>
     </div>
 
+    <div id="image-modal" class="image-modal" aria-hidden="true">
+        <button id="image-modal-close" class="image-modal-close" type="button">Close</button>
+        <img id="image-modal-img" class="image-modal-img" alt="Preview image" />
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
@@ -632,11 +758,20 @@
         const modalSendBtn = document.getElementById('modal-send-btn');
         const appTitleEl = document.querySelector('h1');
         const modalTitleEl = document.getElementById('editor-modal-title');
+        const pendingImageEl = document.getElementById('pending-image');
+        const pendingImagePreviewEl = document.getElementById('pending-image-preview');
+        const pendingImageLabelEl = document.getElementById('pending-image-label');
+        const pendingImageRemoveBtn = document.getElementById('pending-image-remove');
+        const imageModalEl = document.getElementById('image-modal');
+        const imageModalImgEl = document.getElementById('image-modal-img');
+        const imageModalCloseBtn = document.getElementById('image-modal-close');
         const backgroundModeLabelEl = document.getElementById('background-mode-label');
         const backgroundToggleGroup = document.querySelector('.background-toggle');
         const bgGradientBtn = document.getElementById('bg-btn-gradient');
         const bgImageBtn = document.getElementById('bg-btn-image');
         let connectionState = 'connecting';
+        const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+        let pendingImageDataUrl = null;
 
         const i18n = {
             en: {
@@ -661,6 +796,15 @@
                 copy: 'Copy',
                 copied: 'Copied!',
                 copyFail: 'Failed to copy to clipboard: ',
+                openImage: 'Open',
+                imageAlt: 'Pasted image',
+                imageReady: 'Pasted image ready to send',
+                removeImage: 'Remove',
+                imageTooLarge: 'Image is too large. Max size is 10MB.',
+                imageSendFailed: 'Failed to send image.',
+                imageInvalid: 'Invalid image data.',
+                imageCopyFailed: 'Failed to copy image.',
+                imageCopyRequiresHttps: 'Image copy requires HTTPS or localhost.',
                 backgroundMode: 'Background',
                 backgroundGradient: 'Gradient',
                 backgroundImage: 'Image',
@@ -689,6 +833,15 @@
                 copy: '复制',
                 copied: '已复制！',
                 copyFail: '复制失败：',
+                openImage: '打开',
+                imageAlt: '粘贴的图片',
+                imageReady: '图片已就绪，点击发送即可',
+                removeImage: '移除',
+                imageTooLarge: '图片太大，最大 10MB。',
+                imageSendFailed: '图片发送失败。',
+                imageInvalid: '无效的图片数据。',
+                imageCopyFailed: '复制图片失败。',
+                imageCopyRequiresHttps: '复制图片需要 HTTPS 或 localhost。',
                 langToggle: 'EN',
                 backgroundMode: '背景',
                 backgroundGradient: '渐变',
@@ -732,6 +885,8 @@
             modalCloseBtn.setAttribute('aria-label', t('closeExpandedEditor'));
             modalCancelBtn.textContent = t('cancel');
             modalSendBtn.textContent = t('send');
+            pendingImageLabelEl.textContent = t('imageReady');
+            pendingImageRemoveBtn.textContent = t('removeImage');
             backgroundModeLabelEl.textContent = t('backgroundMode');
             backgroundToggleGroup.setAttribute('aria-label', t('backgroundMode'));
             bgGradientBtn.textContent = t('backgroundGradient');
@@ -746,12 +901,27 @@
                     btn.textContent = t('copy');
                 }
             });
+            messagesEl.querySelectorAll('.open-image-btn').forEach((btn) => {
+                btn.textContent = t('openImage');
+            });
         }
 
         function toggleLanguage() {
             currentLang = currentLang === 'zh' ? 'en' : 'zh';
             localStorage.setItem('app-lang', currentLang);
             applyLanguage();
+        }
+
+        function setPendingImage(dataUrl) {
+            pendingImageDataUrl = dataUrl;
+            pendingImagePreviewEl.src = dataUrl;
+            pendingImageEl.classList.remove('hidden');
+        }
+
+        function clearPendingImage() {
+            pendingImageDataUrl = null;
+            pendingImagePreviewEl.src = '';
+            pendingImageEl.classList.add('hidden');
         }
 
         function applyBackgroundMode() {
@@ -774,6 +944,18 @@
         function setBackgroundMode(mode) {
             backgroundMode = mode === 'gradient' ? 'gradient' : 'image';
             applyBackgroundMode();
+        }
+
+        function openImageModal(dataUrl) {
+            imageModalImgEl.src = dataUrl;
+            imageModalEl.classList.add('open');
+            imageModalEl.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeImageModal() {
+            imageModalEl.classList.remove('open');
+            imageModalEl.setAttribute('aria-hidden', 'true');
+            imageModalImgEl.src = '';
         }
 
         // Connection status handling
@@ -804,6 +986,18 @@
             scrollToBottom();
         });
 
+        socket.on('message_error', (payload) => {
+            if (payload && payload.reason === 'image-too-large') {
+                alert(t('imageTooLarge'));
+                return;
+            }
+            if (payload && payload.reason === 'image-invalid') {
+                alert(t('imageInvalid'));
+                return;
+            }
+            alert(t('imageSendFailed'));
+        });
+
         // History cleared
         socket.on('cleared', () => {
             messagesEl.innerHTML = '';
@@ -816,6 +1010,15 @@
                 socket.emit('message', text);
                 inputEl.value = '';
                 inputEl.focus();
+                return;
+            }
+
+            if (pendingImageDataUrl) {
+                socket.emit('message', {
+                    type: 'image',
+                    dataUrl: pendingImageDataUrl
+                });
+                clearPendingImage();
             }
         }
 
@@ -827,6 +1030,87 @@
                 sendMessage();
             }
         });
+
+        function handleImagePaste(event) {
+            const clipboard = event.clipboardData;
+            if (!clipboard || !clipboard.items) {
+                return;
+            }
+
+            for (const item of clipboard.items) {
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    event.preventDefault();
+                    const file = item.getAsFile();
+                    if (!file) {
+                        alert(t('imageSendFailed'));
+                        return;
+                    }
+
+                    if (file.size > MAX_IMAGE_BYTES) {
+                        alert(t('imageTooLarge'));
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        setPendingImage(reader.result);
+                    };
+                    reader.onerror = () => {
+                        alert(t('imageSendFailed'));
+                    };
+                    reader.readAsDataURL(file);
+                    return;
+                }
+            }
+        }
+
+        function dataUrlToBlob(dataUrl) {
+            const parts = dataUrl.split(',');
+            if (parts.length < 2) {
+                return null;
+            }
+            const match = parts[0].match(/data:(image\/[a-zA-Z0-9.+-]+);base64/);
+            if (!match) {
+                return null;
+            }
+            const binary = atob(parts[1]);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i += 1) {
+                array[i] = binary.charCodeAt(i);
+            }
+            return new Blob([array], { type: match[1] });
+        }
+
+        async function copyImageToClipboard(btn, dataUrl) {
+            if (!window.isSecureContext) {
+                alert(t('imageCopyRequiresHttps'));
+                return;
+            }
+
+            if (!(navigator.clipboard && window.ClipboardItem)) {
+                alert(t('imageCopyFailed'));
+                return;
+            }
+
+            const blob = dataUrlToBlob(dataUrl);
+            if (!blob) {
+                alert(t('imageInvalid'));
+                return;
+            }
+
+            try {
+                await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                btn.textContent = t('copied');
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = t('copy');
+                    btn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy image:', err);
+                alert(t('imageCopyFailed'));
+            }
+        }
 
         function openEditorModal() {
             expandedInputEl.value = inputEl.value;
@@ -861,10 +1145,15 @@
         langToggleBtn.addEventListener('click', toggleLanguage);
         bgGradientBtn.addEventListener('click', () => setBackgroundMode('gradient'));
         bgImageBtn.addEventListener('click', () => setBackgroundMode('image'));
+        pendingImageRemoveBtn.addEventListener('click', clearPendingImage);
+        imageModalCloseBtn.addEventListener('click', closeImageModal);
 
         expandedInputEl.addEventListener('input', () => {
             inputEl.value = expandedInputEl.value;
         });
+
+        inputEl.addEventListener('paste', (event) => handleImagePaste(event));
+        expandedInputEl.addEventListener('paste', (event) => handleImagePaste(event));
 
         expandedInputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -879,9 +1168,17 @@
             }
         });
 
+        imageModalEl.addEventListener('click', (e) => {
+            if (e.target === imageModalEl) {
+                closeImageModal();
+            }
+        });
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && editorModal.classList.contains('open')) {
                 closeEditorModal(true);
+            } else if (e.key === 'Escape' && imageModalEl.classList.contains('open')) {
+                closeImageModal();
             }
         });
 
@@ -897,36 +1194,60 @@
             const div = document.createElement('div');
             div.className = 'message';
 
-            // Create content element
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.textContent = msg.content;
+            const isImage = msg && msg.type === 'image' && msg.dataUrl;
 
-            // Create meta container
+            if (isImage) {
+                contentDiv.className = 'message-content image-content';
+                const img = document.createElement('img');
+                img.className = 'message-image';
+                img.src = msg.dataUrl;
+                img.alt = t('imageAlt');
+                img.loading = 'lazy';
+                img.addEventListener('click', () => {
+                    openImageModal(msg.dataUrl);
+                });
+                contentDiv.appendChild(img);
+            } else {
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = msg && typeof msg.content === 'string' ? msg.content : '';
+            }
+
             const metaDiv = document.createElement('div');
             metaDiv.className = 'message-meta';
 
-            // Timestamp
-            const date = new Date(msg.timestamp);
+            const date = msg && msg.timestamp ? new Date(msg.timestamp) : new Date();
             const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const timeSpan = document.createElement('span');
             timeSpan.className = 'timestamp';
             timeSpan.textContent = timeStr;
 
-            // Copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'copy-btn';
-            copyBtn.textContent = t('copy');
-            copyBtn.onclick = () => copyToClipboard(copyBtn, msg.content);
-
             metaDiv.appendChild(timeSpan);
-            metaDiv.appendChild(copyBtn);
+
+            if (isImage) {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn copy-image-btn';
+                copyBtn.textContent = t('copy');
+                copyBtn.onclick = () => copyImageToClipboard(copyBtn, msg.dataUrl);
+
+                const openBtn = document.createElement('button');
+                openBtn.className = 'copy-btn open-image-btn';
+                openBtn.textContent = t('openImage');
+                openBtn.onclick = () => openImageModal(msg.dataUrl);
+                metaDiv.appendChild(copyBtn);
+                metaDiv.appendChild(openBtn);
+            } else {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = t('copy');
+                copyBtn.onclick = () => copyToClipboard(copyBtn, msg.content);
+                metaDiv.appendChild(copyBtn);
+            }
 
             div.appendChild(contentDiv);
             div.appendChild(metaDiv);
 
             messagesEl.appendChild(div);
-            // Auto scroll (only if near bottom or user just sent, but for simplicity always scroll)
             scrollToBottom();
         }
 
